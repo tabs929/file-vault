@@ -1,3 +1,78 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /* ── Light theme (:root) ──────────────────────────────────────────────────── */
+  :root {
+    --background: 0 0% 100%;          /* #ffffff */
+    --foreground: 0 0% 4%;            /* #0a0a0a */
+
+    --card: 0 0% 98%;                 /* #fafafa */
+    --card-foreground: 0 0% 4%;       /* #0a0a0a */
+
+    --popover: 0 0% 100%;             /* #ffffff */
+    --popover-foreground: 0 0% 4%;    /* #0a0a0a */
+
+    --primary: 239 86% 59%;           /* #3b3df0 */
+    --primary-foreground: 0 0% 100%;  /* #ffffff */
+
+    --secondary: 240 5% 96%;          /* #f4f4f5 */
+    --secondary-foreground: 240 6% 10%; /* #18181b */
+
+    --muted: 240 5% 96%;              /* #f4f4f5 */
+    --muted-foreground: 240 5% 34%;   /* #52525b */
+
+    --accent: 240 5% 96%;             /* #f4f4f5 */
+    --accent-foreground: 240 6% 10%;  /* #18181b */
+
+    --destructive: 0 72% 51%;         /* #dc2626 */
+    --destructive-foreground: 0 0% 100%; /* #ffffff */
+
+    --border: 240 6% 90%;             /* #e4e4e7 */
+    --input: 240 6% 90%;              /* #e4e4e7 */
+    --ring: 239 86% 59%;              /* #3b3df0 */
+
+    --radius: 0.5rem;
+  }
+
+  /* ── Dark theme (.dark) ───────────────────────────────────────────────────── */
+  .dark {
+    --background: 0 0% 4%;            /* #0a0a0a */
+    --foreground: 0 0% 98%;           /* #fafafa */
+
+    --card: 240 5% 8%;                /* #141416 */
+    --card-foreground: 0 0% 98%;      /* #fafafa */
+
+    --popover: 240 5% 8%;             /* #141416 */
+    --popover-foreground: 0 0% 98%;   /* #fafafa */
+
+    --primary: 239 86% 59%;           /* #3b3df0 — brand color consistent across themes */
+    --primary-foreground: 0 0% 100%;  /* #ffffff */
+
+    --secondary: 240 4% 16%;          /* #27272a */
+    --secondary-foreground: 0 0% 98%; /* #fafafa */
+
+    --muted: 240 6% 13%;              /* #1f1f23 */
+    --muted-foreground: 240 5% 65%;   /* #a1a1aa */
+
+    --accent: 240 6% 13%;             /* #1f1f23 */
+    --accent-foreground: 0 0% 98%;    /* #fafafa */
+
+    --destructive: 0 72% 51%;         /* #dc2626 */
+    --destructive-foreground: 0 0% 100%; /* #ffffff */
+
+    --border: 240 4% 16%;             /* #27272a */
+    --input: 240 4% 16%;              /* #27272a */
+    --ring: 239 86% 59%;              /* #3b3df0 */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
