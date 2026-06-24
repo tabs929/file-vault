@@ -22,7 +22,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str
 
     # Object storage (MinIO locally, AWS S3 in production)
-    S3_ENDPOINT_URL: str
+    # S3_ENDPOINT_URL: internal endpoint (Docker service name). Empty = real AWS.
+    # S3_PUBLIC_ENDPOINT_URL: browser-visible endpoint for presigned URLs.
+    #   Must match what the browser hits. Empty = real AWS (same as internal).
+    S3_ENDPOINT_URL: str = ""
+    S3_PUBLIC_ENDPOINT_URL: str = ""
     S3_BUCKET: str
     S3_REGION: str
     S3_ACCESS_KEY_ID: str

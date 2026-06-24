@@ -51,6 +51,9 @@ async def _ensure_schema() -> None:
     if _schema_ready:
         return
     async with TEST_ENGINE.begin() as conn:
+        # Drop and recreate so the schema always matches the current models.
+        # Safe because tests roll back every transaction; no persistent data.
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
         await conn.execute(
             text(

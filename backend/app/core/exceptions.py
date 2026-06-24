@@ -25,6 +25,16 @@ class AuthenticationError(AppError):
         super().__init__(message, status_code=status.HTTP_401_UNAUTHORIZED)
 
 
+class QuotaExceededError(AppError):
+    def __init__(self, message: str = "Storage quota exceeded") -> None:
+        super().__init__(message, status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+
+
+class StorageVerificationError(AppError):
+    def __init__(self, message: str = "Upload not found in storage") -> None:
+        super().__init__(message, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:

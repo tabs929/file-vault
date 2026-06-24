@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.database import engine
 from app.core.exceptions import register_exception_handlers
 from app.core.rate_limit import limiter
-from app.routers import auth
+from app.routers import auth, files
 
 
 @asynccontextmanager
@@ -44,6 +44,7 @@ app.add_middleware(SlowAPIMiddleware)
 register_exception_handlers(app)
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(files.router, prefix="/files", tags=["files"])
 
 
 @app.get("/health", tags=["meta"])

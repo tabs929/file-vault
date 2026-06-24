@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import BigInteger, ForeignKey, Index, String
+from sqlalchemy import BigInteger, ForeignKey, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,3 +35,8 @@ class File(TimestampMixin, Base):
     storage_key: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     content_type: Mapped[str] = mapped_column(String, nullable=False)
+    upload_status: Mapped[str] = mapped_column(
+        String,
+        server_default=text("'pending'"),
+        nullable=False,
+    )
