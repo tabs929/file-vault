@@ -1,7 +1,7 @@
 [project]
 name = "file-vault-api"
 version = "0.1.0"
-description = "File Vault API — Phase 1 Foundation"
+description = "File Vault API — authentication and file management"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",
@@ -11,6 +11,10 @@ dependencies = [
     "asyncpg>=0.30.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
+    "argon2-cffi>=25.1.0",
+    "pyjwt[crypto]>=2.13.0",
+    "email-validator>=2.3.0",
+    "slowapi>=0.1.10",
 ]
 
 [dependency-groups]
@@ -18,7 +22,13 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
     "httpx>=0.27.0",
+    "greenlet>=3.5.2",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.uv]
 # Lock file is committed; use `uv sync --frozen` in CI/Docker.

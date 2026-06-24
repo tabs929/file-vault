@@ -3,10 +3,14 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.database import engine
+from app.core.exceptions import register_exception_handlers
+from app.core.rate_limit import limiter
+from app.routers import auth
 
 
 @asynccontextmanager
@@ -26,6 +30,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.state.limiter = limiter
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,6 +39,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SlowAPIMiddleware)
+
+register_exception_handlers(app)
+
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
 
 
 @app.get("/health", tags=["meta"])

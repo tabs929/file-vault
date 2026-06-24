@@ -1,6 +1,9 @@
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEFAULT_SECRET_KEY = "change-this-to-a-random-secret-key-before-production"
 
 
 class Settings(BaseSettings):
@@ -30,6 +33,17 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_secret_key(cls, value: str) -> str:
+        if len(value.encode()) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 bytes")
+        if value == _DEFAULT_SECRET_KEY:
+            raise ValueError(
+                "SECRET_KEY must not use the default placeholder value"
+            )
+        return value
 
     @property
     def cors_origins_list(self) -> list[str]:

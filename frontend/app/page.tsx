@@ -11,9 +11,7 @@ import {
 
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // ── Static fake file data for product preview mockup ──────────────────────────
