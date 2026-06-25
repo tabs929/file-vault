@@ -1,11 +1,15 @@
+import logging
 import os
 import re
 import uuid
 
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
+
+logger = logging.getLogger(__name__)
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
@@ -219,7 +223,14 @@ async def delete_file(
     if file_record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found.")
 
-    await storage_service.delete_object(file_record.storage_key)
+    try:
+        await storage_service.delete_object(file_record.storage_key)
+    except ClientError as e:
+        logger.error(f"S3 delete failed for key={file_record.storage_key} file_id={file_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete file from storage.",
+        )
 
     result2 = await db.execute(
         select(User)

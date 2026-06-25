@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import Any
 
 import boto3
@@ -6,6 +7,8 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Storage keys are server-generated. Never use the client-provided
 # filename as the key — path traversal prevention.
@@ -101,8 +104,12 @@ async def get_object_size(storage_key: str) -> int:
 async def delete_object(storage_key: str) -> None:
     """Delete an object from S3. Runs in a thread (boto3 is sync)."""
     def _delete() -> None:
-        _internal_client().delete_object(
-            Bucket=settings.S3_BUCKET, Key=storage_key
-        )
+        try:
+            _internal_client().delete_object(
+                Bucket=settings.S3_BUCKET, Key=storage_key
+            )
+        except ClientError as e:
+            logger.error(f"S3 delete failed for {storage_key}: {e}")
+            raise
 
     await asyncio.to_thread(_delete)
