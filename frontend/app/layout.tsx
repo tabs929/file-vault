@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Vault — Secure file storage",
+  title: "Vault",
   description:
     "Private, fast file storage built with FastAPI, Next.js, and S3.",
 };

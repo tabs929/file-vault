@@ -87,7 +87,7 @@ export function Footer() {
         {/* Bottom row */}
         <div className="mt-12 border-t border-border pt-6 text-center">
           <p className="text-xs text-muted-foreground">
-            © 2026 Vault. Built as a take-home assessment.
+            © 2026 Vault.
           </p>
         </div>
       </div>

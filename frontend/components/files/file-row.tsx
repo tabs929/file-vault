@@ -170,7 +170,7 @@ export function FileRow({ file, index, onDeleted }: FileRowProps) {
     <>
       <tr className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
         {/* # */}
-        <td className="py-3 pl-4 pr-2 text-[13px] tabular-nums text-muted-foreground">
+        <td className="py-3 pl-4 pr-2 text-center text-[13px] tabular-nums text-muted-foreground">
           {index + 1}
         </td>
 
@@ -186,7 +186,7 @@ export function FileRow({ file, index, onDeleted }: FileRowProps) {
         </td>
 
         {/* Type */}
-        <td className="py-3 px-2">
+        <td className="py-3 px-2 text-center">
           <TypeBadge contentType={file.content_type} />
         </td>
 
@@ -197,7 +197,7 @@ export function FileRow({ file, index, onDeleted }: FileRowProps) {
 
         {/* Actions */}
         <td className="py-3 pl-2 pr-4">
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-center gap-1">
             <GhostButton
               aria-label={`Preview ${file.original_filename}`}
               loading={previewing}

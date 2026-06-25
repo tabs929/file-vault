@@ -109,6 +109,7 @@ def register_payload() -> dict[str, str]:
         "email": "user@example.com",
         "password": "unique-password-123",
         "plan_name": "free",
+        "full_name": "Test User",
     }
 
 

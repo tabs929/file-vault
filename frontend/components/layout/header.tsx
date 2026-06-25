@@ -1,22 +1,21 @@
 import Link from "next/link";
 
-import { Logo } from "@/components/brand/logo";
-import { HeaderLogoutButton } from "@/components/layout/header-logout-button";
+import { HeaderBackground } from "@/components/layout/header-background";
+import { HeaderLogo } from "@/components/layout/header-logo";
+import { HeaderUserMenu } from "@/components/layout/header-user-menu";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getCurrentUser } from "@/lib/auth-server";
 
 export async function Header() {
   const user = await getCurrentUser();
-  const avatarInitial = (user?.email[0] ?? "?").toUpperCase();
 
   return (
-    <header className="w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="relative sticky top-0 z-50 w-full">
+      <HeaderBackground />
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-8">
-          <Link href={user ? "/dashboard" : "/"} aria-label="Vault home">
-            <Logo size="md" showWordmark />
-          </Link>
+          <HeaderLogo />
 
           {!user ? (
             <nav className="hidden items-center gap-6 md:flex">
@@ -45,18 +44,7 @@ export async function Header() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {user ? (
-            <>
-              <span className="hidden text-sm text-muted-foreground sm:inline">
-                {user.email}
-              </span>
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground"
-                aria-hidden
-              >
-                {avatarInitial}
-              </div>
-              <HeaderLogoutButton />
-            </>
+            <HeaderUserMenu fullName={user.full_name ?? ''} email={user.email} />
           ) : (
             <>
               <Link

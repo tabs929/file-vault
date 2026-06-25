@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 
 const registerSchema = z
   .object({
+    full_name: z.string().min(1, "Full name is required").max(100),
     email: z.string().email("Enter a valid email address"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
@@ -54,6 +55,7 @@ export default function RegisterPage() {
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      full_name: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -107,6 +109,27 @@ export default function RegisterPage() {
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {/* Full name */}
+          <FormField
+            control={form.control}
+            name="full_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Full name</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Jane Smith"
+                    disabled={loading}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           {/* Email */}
           <FormField
             control={form.control}

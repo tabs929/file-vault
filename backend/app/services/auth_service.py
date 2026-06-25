@@ -27,6 +27,7 @@ def user_to_response(user: User) -> UserResponse:
     return UserResponse(
         id=user.id,
         email=user.email,
+        full_name=user.full_name,
         plan_name=user.plan.name,
         quota_bytes=user.plan.quota_bytes,
         used_bytes=user.used_bytes,
@@ -40,6 +41,7 @@ async def register_user(
     email: str,
     password: str,
     plan_name: PlanName,
+    full_name: str = "",
 ) -> User:
     if len(password) < 8:
         raise ValidationError("Password must be at least 8 characters")
@@ -53,6 +55,7 @@ async def register_user(
 
     user = User(
         email=email.lower(),
+        full_name=full_name,
         password_hash=hash_password(password),
         plan_id=plan.id,
         used_bytes=0,

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   FileText,
@@ -8,6 +9,11 @@ import {
   Gauge,
   Folder,
 } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Vault — Secure file storage",
+  icons: { icon: "/favicon.ico" },
+};
 
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";

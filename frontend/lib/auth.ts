@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api";
 export interface User {
   id: string;
   email: string;
+  full_name: string;
   plan_name: string;
   quota_bytes: number;
   used_bytes: number;
@@ -13,6 +14,7 @@ export interface RegisterInput {
   email: string;
   password: string;
   plan_name: "free" | "pro_10";
+  full_name: string;
 }
 
 export interface LoginInput {

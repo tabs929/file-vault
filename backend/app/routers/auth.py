@@ -46,6 +46,7 @@ async def register(
         email=body.email,
         password=body.password,
         plan_name=body.plan_name,
+        full_name=body.full_name,
     )
 
     raw_token = await token_service.create_token(

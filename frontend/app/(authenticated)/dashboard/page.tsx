@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+
+export const metadata: Metadata = {
+  title: "Dashboard — Vault",
+};
 
 import { VerificationBanner } from "@/components/dashboard/verification-banner";
 import { FileManager } from "@/components/files/file-manager";
@@ -36,6 +41,7 @@ export default async function DashboardPage() {
         <FileManager
           initialData={fileData}
           userEmail={user.email}
+          fullName={user.full_name}
           planName={user.plan_name}
           emailVerified={user.email_verified}
         />

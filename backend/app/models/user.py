@@ -43,6 +43,7 @@ class User(TimestampMixin, Base):
         server_default=text("1"),
         nullable=False,
     )
+    full_name: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     email_verified: Mapped[bool] = mapped_column(
         Boolean,
         server_default=text("false"),

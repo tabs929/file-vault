@@ -24,7 +24,7 @@ async def _register(client: AsyncClient, email: str = "user@example.com") -> dic
     with patch(EMAIL_PATCH):
         resp = await client.post(
             "/auth/register",
-            json={"email": email, "password": "secure-pass-123", "plan_name": "free"},
+            json={"email": email, "password": "secure-pass-123", "plan_name": "free", "full_name": "Test User"},
         )
     assert resp.status_code == 201
     return resp.json()
@@ -63,7 +63,7 @@ async def test_register_creates_verification_token(
     with patch(EMAIL_PATCH) as mock_send:
         resp = await client.post(
             "/auth/register",
-            json={"email": "newuser@example.com", "password": "secure-pass-123", "plan_name": "free"},
+            json={"email": "newuser@example.com", "password": "secure-pass-123", "plan_name": "free", "full_name": "Test User"},
         )
     assert resp.status_code == 201
     assert mock_send.called
@@ -81,7 +81,7 @@ async def test_register_email_verified_is_false(
     with patch(EMAIL_PATCH):
         resp = await client.post(
             "/auth/register",
-            json={"email": "verify@example.com", "password": "secure-pass-123", "plan_name": "free"},
+            json={"email": "verify@example.com", "password": "secure-pass-123", "plan_name": "free", "full_name": "Test User"},
         )
     assert resp.json()["email_verified"] is False
 
@@ -178,7 +178,7 @@ async def test_verify_email_success(
     with patch(EMAIL_PATCH, side_effect=_capture):
         resp = await client.post(
             "/auth/register",
-            json={"email": "toverify@example.com", "password": "secure-pass-123", "plan_name": "free"},
+            json={"email": "toverify@example.com", "password": "secure-pass-123", "plan_name": "free", "full_name": "Test User"},
         )
     assert resp.status_code == 201
     user_id = resp.json()["id"]
@@ -221,7 +221,7 @@ async def test_verify_email_token_cannot_be_reused(
     with patch(EMAIL_PATCH, side_effect=_capture):
         await client.post(
             "/auth/register",
-            json={"email": "reuse@example.com", "password": "secure-pass-123", "plan_name": "free"},
+            json={"email": "reuse@example.com", "password": "secure-pass-123", "plan_name": "free", "full_name": "Test User"},
         )
 
     import re
@@ -256,7 +256,7 @@ async def test_forgot_password_unverified_user_no_email(
     with patch(EMAIL_PATCH):
         await client.post(
             "/auth/register",
-            json={"email": "unverified@example.com", "password": "secure-pass-123", "plan_name": "free"},
+            json={"email": "unverified@example.com", "password": "secure-pass-123", "plan_name": "free", "full_name": "Test User"},
         )
 
     with patch(EMAIL_PATCH) as mock_send:
@@ -276,7 +276,7 @@ async def test_forgot_password_verified_user_sends_email(
     with patch(EMAIL_PATCH):
         await client.post(
             "/auth/register",
-            json={"email": "pwreset@example.com", "password": "secure-pass-123", "plan_name": "free"},
+            json={"email": "pwreset@example.com", "password": "secure-pass-123", "plan_name": "free", "full_name": "Test User"},
         )
 
     # Verify the user
@@ -307,7 +307,7 @@ async def test_verify_reset_token_valid(
     with patch(EMAIL_PATCH):
         await client.post(
             "/auth/register",
-            json={"email": "checktoken@example.com", "password": "secure-pass-123", "plan_name": "free"},
+            json={"email": "checktoken@example.com", "password": "secure-pass-123", "plan_name": "free", "full_name": "Test User"},
         )
 
     result = await db_session.execute(
@@ -356,7 +356,7 @@ async def _setup_reset_flow(
     with patch(EMAIL_PATCH):
         await client.post(
             "/auth/register",
-            json={"email": email, "password": "old-password-123", "plan_name": "free"},
+            json={"email": email, "password": "old-password-123", "plan_name": "free", "full_name": "Test User"},
         )
 
     result = await db_session.execute(select(User).where(User.email == email))
@@ -492,7 +492,7 @@ async def test_upload_blocked_when_email_unverified(
     with patch(EMAIL_PATCH):
         await client.post(
             "/auth/register",
-            json={"email": "noupload@example.com", "password": "secure-pass-123", "plan_name": "free"},
+            json={"email": "noupload@example.com", "password": "secure-pass-123", "plan_name": "free", "full_name": "Test User"},
         )
 
     await client.post(
@@ -521,7 +521,7 @@ async def test_upload_allowed_after_verification(
     with patch(EMAIL_PATCH, side_effect=_capture):
         await client.post(
             "/auth/register",
-            json={"email": "canupload@example.com", "password": "secure-pass-123", "plan_name": "free"},
+            json={"email": "canupload@example.com", "password": "secure-pass-123", "plan_name": "free", "full_name": "Test User"},
         )
 
     import re

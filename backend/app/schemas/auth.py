@@ -8,6 +8,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
     plan_name: Literal["free", "pro_10"]
+    full_name: str = Field(..., min_length=1, max_length=100, strip_whitespace=True)
 
 
 class LoginRequest(BaseModel):
@@ -18,6 +19,7 @@ class LoginRequest(BaseModel):
 class UserResponse(BaseModel):
     id: uuid.UUID
     email: EmailStr
+    full_name: str
     plan_name: str
     quota_bytes: int
     used_bytes: int

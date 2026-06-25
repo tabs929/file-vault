@@ -39,7 +39,7 @@ async def _register_and_login(client: AsyncClient, email: str, password: str) ->
     with patch(_EMAIL_PATCH, side_effect=_capture):
         await client.post(
             "/auth/register",
-            json={"email": email, "password": password, "plan_name": "free"},
+            json={"email": email, "password": password, "plan_name": "free", "full_name": "Test User"},
         )
 
     # Consume the verification token so the user can upload files.

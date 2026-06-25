@@ -14,6 +14,7 @@ import { formatBytes, planDisplayName } from "@/lib/format";
 interface FileManagerProps {
   initialData: FileListResponse;
   userEmail: string;
+  fullName: string;
   planName: string;
   emailVerified: boolean;
 }
@@ -21,6 +22,7 @@ interface FileManagerProps {
 export function FileManager({
   initialData,
   userEmail,
+  fullName,
   planName,
   emailVerified,
 }: FileManagerProps) {
@@ -29,7 +31,9 @@ export function FileManager({
   const [uploadOpen, setUploadOpen] = useState(false);
   const quotaBytes = initialData.quota_bytes;
 
-  const firstName = userEmail.split("@")[0];
+  const firstName = fullName
+    ? fullName.trim().split(' ')[0]
+    : userEmail.split('@')[0];
 
   const refresh = useCallback(async () => {
     const data = await listFiles();
