@@ -19,7 +19,7 @@ os.environ.setdefault("S3_BUCKET", "file-vault")
 os.environ.setdefault("S3_REGION", "us-east-1")
 os.environ.setdefault("S3_ACCESS_KEY_ID", "minioadmin")
 os.environ.setdefault("S3_SECRET_ACCESS_KEY", "minioadmin123")
-os.environ.setdefault("RESEND_API_KEY", "test-resend-key")
+os.environ["RESEND_API_KEY"] = os.environ.get("RESEND_API_KEY") or "test-resend-key"
 os.environ.setdefault("EMAIL_FROM", "test@example.com")
 os.environ.setdefault("FRONTEND_URL", "http://localhost:3000")
 
