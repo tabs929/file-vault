@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: filevault
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: filevault_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Run tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://filevault:testpassword@localhost:5432/filevault
+          TEST_DATABASE_URL: postgresql+asyncpg://filevault:testpassword@localhost:5432/filevault_test
+          SECRET_KEY: ci-test-secret-key-that-is-32-chars-minimum-length
+          ENVIRONMENT: test
+          CORS_ORIGINS: http://localhost:3000
+          S3_BUCKET: test-bucket
+          S3_REGION: us-east-1
+          S3_ACCESS_KEY_ID: test
+          S3_SECRET_ACCESS_KEY: test
+          S3_ENDPOINT_URL: ""
+          S3_PUBLIC_ENDPOINT_URL: ""
+          EMAIL_FROM: test@example.com
+          RESEND_API_KEY: ""
+          FRONTEND_URL: http://localhost:3000
+        run: uv run pytest -v --tb=short
+
+  frontend-typecheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type check
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+          API_INTERNAL_URL: http://localhost:8000
+        run: npx tsc --noEmit
