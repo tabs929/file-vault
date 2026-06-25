@@ -6,8 +6,8 @@ const SESSION_COOKIE = "session";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Route Handler clears invalid sessions — must not be blocked by auth redirects.
-  if (pathname === "/auth/clear") {
+  // API proxy routes and session-clear handler must not be intercepted.
+  if (pathname.startsWith("/api/") || pathname === "/auth/clear") {
     return NextResponse.next();
   }
 

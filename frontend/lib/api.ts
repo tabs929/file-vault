@@ -11,10 +11,12 @@ function requireAbsoluteApiUrl(
   return configured.replace(/\/$/, "");
 }
 
-const BROWSER_API_URL = requireAbsoluteApiUrl(
-  process.env.NEXT_PUBLIC_API_URL,
-  "NEXT_PUBLIC_API_URL"
-);
+// In production (Vercel), use the same-origin /api proxy to avoid cross-origin
+// cookie issues. In development (Docker), call the backend directly.
+const BROWSER_API_URL =
+  typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? '/api'
+    : requireAbsoluteApiUrl(process.env.NEXT_PUBLIC_API_URL, "NEXT_PUBLIC_API_URL");
 
 /** Server-side fetches (RSC). In Docker use the api service name. */
 const SERVER_API_URL = requireAbsoluteApiUrl(
