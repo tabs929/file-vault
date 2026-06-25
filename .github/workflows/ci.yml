@@ -16,11 +16,11 @@ jobs:
         env:
           POSTGRES_USER: filevault
           POSTGRES_PASSWORD: testpassword
-          POSTGRES_DB: filevault_test
+          POSTGRES_DB: filevault
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U filevault -d filevault"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -44,7 +44,6 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql+asyncpg://filevault:testpassword@localhost:5432/filevault
-          TEST_DATABASE_URL: postgresql+asyncpg://filevault:testpassword@localhost:5432/filevault_test
           SECRET_KEY: ci-test-secret-key-that-is-32-chars-minimum-length
           ENVIRONMENT: development
           CORS_ORIGINS: http://localhost:3000
