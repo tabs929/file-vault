@@ -7,6 +7,7 @@ requires two real concurrent transactions and cannot run under the single
 rolled-back db_session fixture; see the docstring on that test for context.
 """
 
+import re
 import uuid
 from unittest.mock import AsyncMock, patch
 
@@ -25,12 +26,28 @@ _UPLOAD_BODY = {
     "content_type": "application/pdf",
 }
 
+_EMAIL_PATCH = "app.services.email_service._resend_send"
+
 
 async def _register_and_login(client: AsyncClient, email: str, password: str) -> str:
-    await client.post(
-        "/auth/register",
-        json={"email": email, "password": password, "plan_name": "free"},
-    )
+    """Register, auto-verify email (by consuming the emitted token), then log in."""
+    captured: list[dict] = []
+
+    def _capture(params: dict) -> None:
+        captured.append(params)
+
+    with patch(_EMAIL_PATCH, side_effect=_capture):
+        await client.post(
+            "/auth/register",
+            json={"email": email, "password": password, "plan_name": "free"},
+        )
+
+    # Consume the verification token so the user can upload files.
+    if captured:
+        match = re.search(r"token=([A-Za-z0-9_\-]+)", captured[0].get("html", ""))
+        if match:
+            await client.get(f"/auth/verify-email?token={match.group(1)}")
+
     return await login_and_get_cookie(client, email, password)
 
 

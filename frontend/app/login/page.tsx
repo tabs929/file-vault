@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -35,6 +35,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [failedAttempts, setFailedAttempts] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -86,7 +87,10 @@ export default function LoginPage() {
         <Alert>
           <AlertDescription>
             Having trouble signing in? You can{" "}
-            <Link href="/forgot-password" className="font-medium text-primary hover:underline">
+            <Link
+              href="/forgot-password"
+              className="font-medium text-primary hover:underline"
+            >
               reset your password
             </Link>
             .
@@ -96,6 +100,7 @@ export default function LoginPage() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {/* Email — unchanged */}
           <FormField
             control={form.control}
             name="email"
@@ -115,28 +120,45 @@ export default function LoginPage() {
             )}
           />
 
+          {/* Password — label row with forgot link, eye toggle inside input */}
           <FormField
             control={form.control}
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    autoComplete="current-password"
-                    disabled={loading}
-                    {...field}
-                  />
-                </FormControl>
-                <div className="text-right">
+                <div className="flex items-center justify-between">
+                  <FormLabel>Password</FormLabel>
                   <Link
                     href="/forgot-password"
-                    className="text-xs text-muted-foreground hover:text-foreground"
+                    className="text-[13px] text-muted-foreground hover:text-foreground hover:underline"
                   >
                     Forgot your password?
                   </Link>
                 </div>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      className="pr-10"
+                      disabled={loading}
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

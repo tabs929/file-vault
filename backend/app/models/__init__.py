@@ -3,6 +3,7 @@
 from app.models.base import Base
 from app.models.file import File
 from app.models.plan import Plan
+from app.models.token import VerificationToken
 from app.models.user import User
 
-__all__ = ["Base", "File", "Plan", "User"]
+__all__ = ["Base", "File", "Plan", "User", "VerificationToken"]

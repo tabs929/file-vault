@@ -1,48 +1,150 @@
 "use client";
 
-import {
-  Download,
-  FileArchive,
-  FileJson,
-  FileSpreadsheet,
-  FileText,
-  FileType,
-  Image,
-  Loader2,
-  Trash2,
-} from "lucide-react";
+import { Download, Eye, Loader2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { openFilePreview } from "@/components/files/file-preview";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { deleteFile, getDownloadUrl } from "@/lib/files";
 import type { FileRecord } from "@/lib/files";
 import { formatBytes } from "@/lib/format";
 
+// ── Type badge ────────────────────────────────────────────────────────────────
+
+function TypeBadge({ contentType }: { contentType: string }) {
+  let label: string;
+  let cls: string;
+
+  if (contentType === "application/pdf") {
+    label = "PDF";
+    cls = "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+  } else if (contentType.startsWith("image/")) {
+    const sub = contentType.split("/")[1].toUpperCase();
+    label = sub === "JPEG" ? "JPG" : sub;
+    cls = "bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300";
+  } else if (contentType === "application/zip") {
+    label = "ZIP";
+    cls = "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  } else if (
+    contentType === "application/msword" ||
+    contentType.includes("wordprocessingml")
+  ) {
+    label = "DOCX";
+    cls = "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+  } else if (
+    contentType === "application/vnd.ms-excel" ||
+    contentType.includes("spreadsheetml")
+  ) {
+    label = "XLSX";
+    cls = "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300";
+  } else if (contentType === "application/json") {
+    label = "JSON";
+    cls = "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300";
+  } else if (contentType === "text/csv") {
+    label = "CSV";
+    cls = "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  } else {
+    const sub = contentType.split("/")[1].toUpperCase();
+    label = sub === "PLAIN" ? "TXT" : sub;
+    cls = "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${cls}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+// ── Ghost action button ───────────────────────────────────────────────────────
+
+interface GhostButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "default" | "destructive";
+  loading?: boolean;
+  "aria-label": string;
+}
+
+function GhostButton({
+  variant = "default",
+  loading,
+  children,
+  disabled,
+  ...props
+}: GhostButtonProps) {
+  const base =
+    "h-7 w-7 rounded-md flex items-center justify-center border border-transparent bg-transparent transition-colors disabled:opacity-40 disabled:pointer-events-none";
+  const hoverCls =
+    variant === "destructive"
+      ? "text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+      : "text-muted-foreground hover:border-border hover:bg-muted";
+
+  return (
+    <button
+      className={`${base} ${hoverCls}`}
+      disabled={loading || disabled}
+      {...props}
+    >
+      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : children}
+    </button>
+  );
+}
+
+// ── FileRow ───────────────────────────────────────────────────────────────────
+
 interface FileRowProps {
   file: FileRecord;
+  index: number;
   onDeleted: (id: string) => void;
 }
 
-function FileIcon({ contentType }: { contentType: string }) {
-  if (contentType.startsWith("image/")) return <Image className="h-4 w-4 text-blue-500" />;
-  if (contentType === "application/pdf") return <FileType className="h-4 w-4 text-red-500" />;
-  if (contentType === "application/json") return <FileJson className="h-4 w-4 text-yellow-500" />;
-  if (contentType === "application/zip") return <FileArchive className="h-4 w-4 text-purple-500" />;
-  if (contentType.includes("spreadsheet") || contentType.includes("excel"))
-    return <FileSpreadsheet className="h-4 w-4 text-green-500" />;
-  return <FileText className="h-4 w-4 text-muted-foreground" />;
-}
-
-export function FileRow({ file, onDeleted }: FileRowProps) {
+export function FileRow({ file, index, onDeleted }: FileRowProps) {
+  const [previewing, setPreviewing] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const busy = previewing || downloading || deleting;
+
+  const date = new Date(file.created_at).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+  async function handlePreview() {
+    setPreviewing(true);
+    try {
+      await openFilePreview(file.id, file.content_type, file.original_filename);
+    } catch {
+      toast.error("Could not open preview. Please try again.");
+    } finally {
+      setPreviewing(false);
+    }
+  }
 
   async function handleDownload() {
     setDownloading(true);
     try {
       const { download_url } = await getDownloadUrl(file.id);
-      window.open(download_url, "_blank", "noopener,noreferrer");
+      const a = document.createElement("a");
+      a.href = download_url;
+      a.download = file.original_filename;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } catch {
       toast.error("Download failed. Please try again.");
     } finally {
@@ -54,60 +156,107 @@ export function FileRow({ file, onDeleted }: FileRowProps) {
     setDeleting(true);
     try {
       await deleteFile(file.id);
+      setDeleteOpen(false);
       onDeleted(file.id);
       toast.success(`${file.original_filename} deleted.`);
     } catch {
       toast.error("Delete failed. Please try again.");
+    } finally {
       setDeleting(false);
     }
   }
 
-  const date = new Date(file.created_at).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
-      <FileIcon contentType={file.content_type} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-foreground">
-          {file.original_filename}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {formatBytes(file.size_bytes)} · {date}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleDownload}
-          disabled={downloading || deleting}
-          aria-label={`Download ${file.original_filename}`}
-        >
-          {downloading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleDelete}
-          disabled={downloading || deleting}
-          aria-label={`Delete ${file.original_filename}`}
-          className="text-muted-foreground hover:text-destructive"
-        >
-          {deleting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Trash2 className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
-    </div>
+    <>
+      <tr className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
+        {/* # */}
+        <td className="py-3 pl-4 pr-2 text-[13px] tabular-nums text-muted-foreground">
+          {index + 1}
+        </td>
+
+        {/* Name + date */}
+        <td className="min-w-0 py-3 px-2">
+          <p
+            className="truncate text-sm font-medium text-foreground"
+            title={file.original_filename}
+          >
+            {file.original_filename}
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{date}</p>
+        </td>
+
+        {/* Type */}
+        <td className="py-3 px-2">
+          <TypeBadge contentType={file.content_type} />
+        </td>
+
+        {/* Size */}
+        <td className="py-3 px-2 text-right text-[13px] tabular-nums text-muted-foreground">
+          {formatBytes(file.size_bytes)}
+        </td>
+
+        {/* Actions */}
+        <td className="py-3 pl-2 pr-4">
+          <div className="flex items-center justify-end gap-1">
+            <GhostButton
+              aria-label={`Preview ${file.original_filename}`}
+              loading={previewing}
+              disabled={busy}
+              onClick={handlePreview}
+            >
+              <Eye className="h-3.5 w-3.5" />
+            </GhostButton>
+            <GhostButton
+              aria-label={`Download ${file.original_filename}`}
+              loading={downloading}
+              disabled={busy}
+              onClick={handleDownload}
+            >
+              <Download className="h-3.5 w-3.5" />
+            </GhostButton>
+            <GhostButton
+              variant="destructive"
+              aria-label={`Delete ${file.original_filename}`}
+              disabled={busy}
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </GhostButton>
+          </div>
+        </td>
+      </tr>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete file?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <span className="font-medium text-foreground">
+                {file.original_filename}
+              </span>{" "}
+              and free up {formatBytes(file.size_bytes)}. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting…
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

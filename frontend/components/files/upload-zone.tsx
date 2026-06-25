@@ -1,11 +1,33 @@
 "use client";
 
-import { Loader2, Upload } from "lucide-react";
+import {
+  CheckCircle2,
+  CloudUpload,
+  FileArchive,
+  FileJson,
+  FileSpreadsheet,
+  FileText,
+  FileType,
+  Image,
+  Loader2,
+  X,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { ApiError } from "@/lib/api";
 import { confirmUpload, requestUpload, uploadToS3 } from "@/lib/files";
+import { formatBytes } from "@/lib/format";
+
+// ── Constants (kept identical to previous upload-zone) ────────────────────────
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
@@ -25,130 +47,319 @@ const ALLOWED_TYPES = new Set([
 
 const MAX_BYTES = 100 * 1024 * 1024;
 
-interface UploadZoneProps {
+// ── Queue item types ──────────────────────────────────────────────────────────
+
+type ItemStatus = "pending" | "uploading" | "done" | "error";
+
+interface QueueItem {
+  id: string;
+  file: File;
+  status: ItemStatus;
+  progress: number; // 0 | 33 | 66 | 100
+  error?: string;
+}
+
+// ── Small file-type icon for queue rows ───────────────────────────────────────
+
+function QueueFileIcon({ contentType }: { contentType: string }) {
+  const cls = "h-4 w-4 shrink-0";
+  if (contentType === "application/pdf")
+    return <FileType className={`${cls} text-red-500`} />;
+  if (contentType.startsWith("image/"))
+    return <Image className={`${cls} text-violet-500`} />;
+  if (contentType === "application/zip")
+    return <FileArchive className={`${cls} text-amber-500`} />;
+  if (
+    contentType === "application/msword" ||
+    contentType.includes("wordprocessingml")
+  )
+    return <FileText className={`${cls} text-blue-500`} />;
+  if (
+    contentType === "application/vnd.ms-excel" ||
+    contentType.includes("spreadsheetml")
+  )
+    return <FileSpreadsheet className={`${cls} text-green-500`} />;
+  if (contentType === "application/json")
+    return <FileJson className={`${cls} text-yellow-500`} />;
+  if (contentType === "text/csv")
+    return <FileSpreadsheet className={`${cls} text-emerald-500`} />;
+  return <FileText className={`${cls} text-muted-foreground`} />;
+}
+
+// ── UploadModal ───────────────────────────────────────────────────────────────
+
+interface UploadModalProps {
+  open: boolean;
+  onClose: () => void;
   quotaBytes: number;
   usedBytes: number;
   onUploaded: () => void;
 }
 
-export function UploadZone({ quotaBytes, usedBytes, onUploaded }: UploadZoneProps) {
+export function UploadModal({
+  open,
+  onClose,
+  quotaBytes,
+  usedBytes,
+  onUploaded,
+}: UploadModalProps) {
+  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const quotaFull = usedBytes >= quotaBytes;
+  // ── State helpers ───────────────────────────────────────────────────────────
 
-  async function handleFile(file: File) {
-    if (!ALLOWED_TYPES.has(file.type)) {
-      toast.error(`${file.name}: file type not allowed.`);
-      return;
+  function updateItem(id: string, patch: Partial<QueueItem>) {
+    setQueue((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...patch } : item))
+    );
+  }
+
+  function removeItem(id: string) {
+    setQueue((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  // ── Add files to queue ──────────────────────────────────────────────────────
+
+  function enqueueFiles(files: File[]) {
+    const pendingBytes = queue
+      .filter((i) => i.status === "pending" || i.status === "uploading")
+      .reduce((sum, i) => sum + i.file.size, 0);
+
+    for (const file of files) {
+      if (!ALLOWED_TYPES.has(file.type)) {
+        toast.error(`${file.name}: file type not allowed.`);
+        continue;
+      }
+      if (file.size > MAX_BYTES) {
+        toast.error(`${file.name}: exceeds the 100 MB size limit.`);
+        continue;
+      }
+      if (usedBytes + pendingBytes + file.size > quotaBytes) {
+        toast.error(`${file.name}: not enough storage quota.`);
+        continue;
+      }
+      setQueue((prev) => [
+        ...prev,
+        {
+          id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
+          file,
+          status: "pending",
+          progress: 0,
+        },
+      ]);
     }
-    if (file.size > MAX_BYTES) {
-      toast.error(`${file.name}: exceeds the 100 MB size limit.`);
-      return;
-    }
-    if (usedBytes + file.size > quotaBytes) {
-      toast.error("Not enough storage quota for this file.");
-      return;
-    }
+  }
+
+  // ── Upload one item ─────────────────────────────────────────────────────────
+
+  async function uploadOne(item: QueueItem): Promise<void> {
+    updateItem(item.id, { status: "uploading", progress: 0 });
+
+    const { file_id, presigned_url } = await requestUpload(
+      item.file.name,
+      item.file.size,
+      item.file.type
+    );
+    updateItem(item.id, { progress: 33 });
+
+    await uploadToS3(presigned_url, item.file);
+    updateItem(item.id, { progress: 66 });
+
+    await confirmUpload(file_id);
+    updateItem(item.id, { status: "done", progress: 100 });
+  }
+
+  // ── Upload all in parallel ──────────────────────────────────────────────────
+
+  async function handleUploadAll() {
+    const pending = queue.filter(
+      (i) => i.status === "pending" || i.status === "error"
+    );
+    if (pending.length === 0) return;
 
     setUploading(true);
-    try {
-      // Step 1: request a presigned PUT URL from the API.
-      const { file_id, presigned_url } = await requestUpload(
-        file.name,
-        file.size,
-        file.type
-      );
 
-      // Step 2: upload directly to S3 (browser → S3, API not in the path).
-      await uploadToS3(presigned_url, file);
+    const results = await Promise.allSettled(
+      pending.map((item) =>
+        uploadOne(item).catch((err) => {
+          const msg =
+            err instanceof ApiError
+              ? err.message
+              : err instanceof Error
+              ? err.message
+              : "Upload failed";
+          updateItem(item.id, { status: "error", error: msg, progress: 0 });
+          throw err;
+        })
+      )
+    );
 
-      // Step 3: confirm the upload so the API verifies it landed in S3.
-      await confirmUpload(file_id);
+    setUploading(false);
 
-      toast.success(`${file.name} uploaded.`);
+    const allSucceeded = results.every((r) => r.status === "fulfilled");
+    if (allSucceeded) {
       onUploaded();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        toast.error(err.message);
-      } else if (err instanceof Error) {
-        toast.error(err.message);
-      } else {
-        toast.error("Upload failed. Please try again.");
-      }
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
+      handleClose();
     }
+    // partial failure: keep modal open so user sees which files failed
   }
 
-  function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
+  // ── Close (blocked while uploading) ────────────────────────────────────────
+
+  function handleClose() {
+    if (uploading) return;
+    setQueue([]);
+    onClose();
   }
+
+  // ── Drop zone handlers ──────────────────────────────────────────────────────
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
+    if (uploading) return;
+    enqueueFiles(Array.from(e.dataTransfer.files));
   }
 
-  if (quotaFull) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-destructive/40 bg-destructive/5 px-6 py-8 text-center">
-        <p className="text-sm font-medium text-destructive">Storage full</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Delete files or upgrade your plan to upload more.
-        </p>
-      </div>
-    );
+  function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) enqueueFiles(Array.from(e.target.files));
+    e.target.value = "";
   }
+
+  const pendingCount = queue.filter(
+    (i) => i.status === "pending" || i.status === "error"
+  ).length;
+
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label="Upload file"
-      onClick={() => !uploading && inputRef.current?.click()}
-      onKeyDown={(e) => e.key === "Enter" && !uploading && inputRef.current?.click()}
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={onDrop}
-      className={[
-        "flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-6 py-10 text-center transition-colors",
-        dragOver
-          ? "border-primary bg-primary/5"
-          : "border-border hover:border-muted-foreground/50 hover:bg-muted/30",
-        uploading ? "pointer-events-none opacity-60" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        className="hidden"
-        onChange={onInputChange}
-        disabled={uploading}
-      />
-      {uploading ? (
-        <>
-          <Loader2 className="mb-3 h-7 w-7 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Uploading…</p>
-        </>
-      ) : (
-        <>
-          <Upload className="mb-3 h-7 w-7 text-muted-foreground" />
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent
+        className="max-w-lg"
+        onInteractOutside={(e) => { if (uploading) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (uploading) e.preventDefault(); }}
+      >
+        <DialogHeader>
+          <DialogTitle>Upload files</DialogTitle>
+        </DialogHeader>
+
+        {/* Drop zone */}
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Select files to upload"
+          onClick={() => !uploading && inputRef.current?.click()}
+          onKeyDown={(e) =>
+            e.key === "Enter" && !uploading && inputRef.current?.click()
+          }
+          onDragOver={(e) => { e.preventDefault(); if (!uploading) setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={onDrop}
+          className={[
+            "flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-6 py-8 text-center transition-colors",
+            dragOver
+              ? "border-primary bg-primary/5"
+              : "border-border hover:border-muted-foreground/50 hover:bg-muted/30",
+            uploading ? "pointer-events-none opacity-60" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={onInputChange}
+            disabled={uploading}
+          />
+          <CloudUpload className="mb-2 h-6 w-6 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">
-            Drop a file here or click to browse
+            Drop files here or browse
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Max 100 MB · Images, PDFs, text, CSV, JSON, ZIP, Office docs
           </p>
-        </>
-      )}
-    </div>
+        </div>
+
+        {/* Queue */}
+        {queue.length > 0 && (
+          <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+            {queue.map((item) => (
+              <div key={item.id} className="flex items-start gap-2.5">
+                <QueueFileIcon contentType={item.file.type} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="truncate text-sm font-medium text-foreground"
+                      title={item.file.name}
+                    >
+                      {item.file.name}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-xs tabular-nums text-muted-foreground">
+                        {formatBytes(item.file.size)}
+                      </span>
+                      {item.status === "done" && (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      )}
+                      {item.status === "uploading" && (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                      {(item.status === "pending" ||
+                        item.status === "error") && (
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          title={item.error}
+                          aria-label={`Remove ${item.file.name}`}
+                          className={`flex h-4 w-4 items-center justify-center rounded transition-colors hover:opacity-70 ${
+                            item.status === "error"
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <Progress
+                    value={item.progress}
+                    className={`mt-1.5 h-[3px] ${item.status === "error" ? "[&>div]:bg-destructive" : ""}`}
+                  />
+                  {item.status === "error" && item.error && (
+                    <p className="mt-0.5 text-[11px] text-destructive">
+                      {item.error}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <Button variant="ghost" onClick={handleClose} disabled={uploading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleUploadAll}
+            disabled={uploading || pendingCount === 0}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Uploading…
+              </>
+            ) : (
+              `Upload ${pendingCount > 0 ? pendingCount : ""} file${pendingCount !== 1 ? "s" : ""}`.trim()
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

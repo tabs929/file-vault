@@ -1,16 +1,12 @@
-"use client";
-
-import { Upload } from "lucide-react";
+import { FolderOpen } from "lucide-react";
 
 export function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
-      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-        <Upload className="h-6 w-6 text-muted-foreground" />
-      </div>
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <FolderOpen className="h-10 w-10 text-muted-foreground mb-3" />
       <p className="text-base font-medium text-foreground">No files yet</p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Upload a file to get started.
+      <p className="mt-1 text-[13px] text-muted-foreground">
+        Upload your first file to get started
       </p>
     </div>
   );
