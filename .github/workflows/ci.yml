@@ -46,7 +46,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://filevault:testpassword@localhost:5432/filevault
           TEST_DATABASE_URL: postgresql+asyncpg://filevault:testpassword@localhost:5432/filevault_test
           SECRET_KEY: ci-test-secret-key-that-is-32-chars-minimum-length
-          ENVIRONMENT: test
+          ENVIRONMENT: development
           CORS_ORIGINS: http://localhost:3000
           S3_BUCKET: test-bucket
           S3_REGION: us-east-1
