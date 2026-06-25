@@ -1,3 +1,6 @@
+import uuid
+
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,15 +14,16 @@ from app.models.user import User
 # The lock serializes concurrent uploads per user.
 
 
-async def check_and_reserve_quota(
+async def check_quota(
     db: AsyncSession,
-    user_id: object,
+    user_id: uuid.UUID,
     size_bytes: int,
-) -> None:
-    """Check quota and increment used_bytes atomically under a row lock.
+) -> User:
+    """Check that current_usage + size_bytes would not exceed the plan quota.
 
-    Raises QuotaExceededError if current_usage + size_bytes would exceed the plan quota.
-    On success, used_bytes is incremented by size_bytes within the caller's transaction.
+    Raises QuotaExceededError if the check fails. Does NOT increment used_bytes —
+    the caller must do that atomically at confirm time.
+    Returns the locked User row.
     """
     # selectinload keeps plan in a separate SELECT so FOR UPDATE locks only the user row.
     # populate_existing=True overwrites the identity-map cache with the freshly-locked
@@ -31,7 +35,14 @@ async def check_and_reserve_quota(
         .with_for_update()
         .execution_options(populate_existing=True)
     )
-    user = result.scalar_one()
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    if user.plan is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="User has no plan assigned.",
+        )
 
     if user.used_bytes + size_bytes > user.plan.quota_bytes:
         raise QuotaExceededError(
@@ -40,4 +51,4 @@ async def check_and_reserve_quota(
             f"Currently using {user.used_bytes} bytes."
         )
 
-    user.used_bytes = user.used_bytes + size_bytes
+    return user

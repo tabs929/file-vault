@@ -253,6 +253,46 @@ async def test_quota_soft_limit_returns_413(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
+# used_bytes timing: incremented at confirm, not at request
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_used_bytes_incremented_at_confirm_not_request(client: AsyncClient) -> None:
+    """used_bytes stays 0 after request-upload and equals file_size after confirm-upload."""
+    cookie = await _register_and_login(client, "quota_timing@example.com", "quota-timing-123!")
+
+    with (
+        patch(
+            "app.services.storage_service.generate_presigned_put",
+            return_value="https://minio/put",
+        ),
+        patch(
+            "app.services.storage_service.object_exists",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+        patch(
+            "app.services.storage_service.get_object_size",
+            new_callable=AsyncMock,
+            return_value=1024,
+        ),
+    ):
+        req = await _do_request_upload(client, cookie)
+        assert req.status_code == 201
+        file_id = req.json()["file_id"]
+
+        after_request = await client.get("/files/", cookies={"session": cookie})
+        assert after_request.json()["used_bytes"] == 0
+
+        confirm = await client.post(f"/files/confirm-upload/{file_id}", cookies={"session": cookie})
+        assert confirm.status_code == 200
+
+    after_confirm = await client.get("/files/", cookies={"session": cookie})
+    assert after_confirm.json()["used_bytes"] == 1024
+
+
+# ---------------------------------------------------------------------------
 # Confirm with no S3 object
 # ---------------------------------------------------------------------------
 

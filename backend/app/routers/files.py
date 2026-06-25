@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import noload
+from sqlalchemy.orm import noload, selectinload
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +75,9 @@ async def request_upload(
             detail=f"Content type '{body.content_type}' is not allowed.",
         )
 
-    # Quota check + reserve: SELECT FOR UPDATE then increment used_bytes.
-    # Both happen in this transaction so the lock covers the increment.
-    await quota_service.check_and_reserve_quota(db, current_user.id, body.size_bytes)
+    # Quota check only — used_bytes is NOT incremented here.
+    # Increment happens atomically at confirm-upload under a row lock.
+    await quota_service.check_quota(db, current_user.id, body.size_bytes)
 
     safe_name = _safe_filename(body.filename)
     storage_key = f"{current_user.id}/{uuid.uuid4()}/{safe_name}"
@@ -136,22 +136,37 @@ async def confirm_upload(
     # clients from declaring a small size but uploading a large file.
     actual_size = await storage_service.get_object_size(file_record.storage_key)
     if actual_size != file_record.size_bytes:
-        # Size mismatch: roll back the reserved bytes and delete the stale record.
-        result2 = await db.execute(
-            select(User)
-            .options(noload(User.plan))
-            .where(User.id == current_user.id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-        owner = result2.scalar_one()
-        owner.used_bytes = max(0, owner.used_bytes - file_record.size_bytes)
         await db.delete(file_record)
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Uploaded file size does not match declared size.",
         )
+
+    # Atomic quota increment under a row lock. used_bytes was not touched at
+    # request-upload time, so this is the sole increment. FOR UPDATE serializes
+    # concurrent confirms for the same user, closing the TOCTOU window.
+    result2 = await db.execute(
+        select(User)
+        .options(selectinload(User.plan))
+        .where(User.id == current_user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    owner = result2.scalar_one()
+    if owner.plan is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="User has no plan assigned.",
+        )
+    if owner.used_bytes + file_record.size_bytes > owner.plan.quota_bytes:
+        await db.delete(file_record)
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Quota exceeded.",
+        )
+    owner.used_bytes += file_record.size_bytes
 
     file_record.upload_status = "confirmed"
     await db.commit()
