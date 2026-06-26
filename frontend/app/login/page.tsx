@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -36,6 +36,7 @@ export default function LoginPage() {
   const [failedAttempts, setFailedAttempts] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
+  const [authError, setAuthError] = React.useState<string | null>(null);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -47,6 +48,7 @@ export default function LoginPage() {
 
   async function onSubmit(values: LoginFormValues) {
     setLoading(true);
+    setAuthError(null);
     try {
       await login(values);
       setFailedAttempts(0);
@@ -56,14 +58,14 @@ export default function LoginPage() {
       if (error instanceof ApiError) {
         if (error.status === 401) {
           setFailedAttempts((count) => count + 1);
-          toast.error("Invalid credentials");
+          setAuthError("Invalid email or password");
         } else if (error.status === 429) {
           toast.error("Too many attempts. Please wait a minute.");
         } else {
-          toast.error(error.message || "Something went wrong. Please try again.");
+          setAuthError(error.message || "Something went wrong. Please try again.");
         }
       } else {
-        toast.error("Something went wrong. Please try again.");
+        setAuthError("Something went wrong. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -100,7 +102,13 @@ export default function LoginPage() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {/* Email — unchanged */}
+          {authError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              {authError}
+            </div>
+          )}
+
           <FormField
             control={form.control}
             name="email"
@@ -113,6 +121,7 @@ export default function LoginPage() {
                     autoComplete="email"
                     disabled={loading}
                     {...field}
+                    onChange={(e) => { field.onChange(e); setAuthError(null); }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -143,6 +152,7 @@ export default function LoginPage() {
                       className="pr-10"
                       disabled={loading}
                       {...field}
+                      onChange={(e) => { field.onChange(e); setAuthError(null); }}
                     />
                     <button
                       type="button"

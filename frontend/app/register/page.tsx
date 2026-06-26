@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -51,6 +51,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirm, setShowConfirm] = React.useState(false);
+  const [authError, setAuthError] = React.useState<string | null>(null);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -72,6 +73,7 @@ export default function RegisterPage() {
 
   async function onSubmit(values: RegisterFormValues) {
     setLoading(true);
+    setAuthError(null);
     try {
       const { confirmPassword: _cp, ...registerValues } = values;
       await register(registerValues);
@@ -80,14 +82,14 @@ export default function RegisterPage() {
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.status === 409) {
-          toast.error("Registration failed");
+          setAuthError("An account with this email already exists.");
         } else if (error.status === 400) {
-          toast.error(error.message);
+          setAuthError(error.message || "Invalid request. Please check your details.");
         } else {
-          toast.error(error.message);
+          setAuthError(error.message || "Something went wrong. Please try again.");
         }
       } else {
-        toast.error("Something went wrong. Please try again.");
+        setAuthError("Something went wrong. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -123,6 +125,7 @@ export default function RegisterPage() {
                     placeholder="Jane Smith"
                     disabled={loading}
                     {...field}
+                    onChange={(e) => { field.onChange(e); setAuthError(null); }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -136,6 +139,12 @@ export default function RegisterPage() {
             name="email"
             render={({ field }) => (
               <FormItem>
+                {authError && (
+                  <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-sm text-destructive mb-1">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    {authError}
+                  </div>
+                )}
                 <FormLabel>Email</FormLabel>
                 <FormControl>
                   <Input
@@ -143,6 +152,7 @@ export default function RegisterPage() {
                     autoComplete="email"
                     disabled={loading}
                     {...field}
+                    onChange={(e) => { field.onChange(e); setAuthError(null); }}
                   />
                 </FormControl>
                 <FormMessage />
