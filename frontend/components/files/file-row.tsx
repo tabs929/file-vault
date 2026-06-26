@@ -117,11 +117,6 @@ export function FileRow({ file, index, onDeleted }: FileRowProps) {
 
   const busy = previewing || downloading || deleting;
 
-  const date = new Date(file.created_at).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 
   async function handlePreview() {
     setPreviewing(true);
@@ -170,28 +165,42 @@ export function FileRow({ file, index, onDeleted }: FileRowProps) {
     <>
       <tr className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
         {/* # */}
-        <td className="py-3 pl-4 pr-2 text-center text-[13px] tabular-nums text-muted-foreground">
+        <td className="hidden sm:table-cell py-3 pl-4 pr-2 text-center text-[13px] tabular-nums text-muted-foreground">
           {index + 1}
         </td>
 
         {/* Name + date */}
-        <td className="min-w-0 py-3 px-2">
+        <td className="min-w-0 py-3 px-4">
           <p
             className="truncate text-sm font-medium text-foreground"
             title={file.original_filename}
           >
             {file.original_filename}
           </p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">{date}</p>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">
+            <span className="sm:hidden">
+              {new Date(file.created_at).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+            <span className="hidden sm:inline">
+              {new Date(file.created_at).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </span>
+          </div>
         </td>
 
         {/* Type */}
-        <td className="py-3 px-2 text-center">
+        <td className="hidden sm:table-cell py-3 px-2 text-center">
           <TypeBadge contentType={file.content_type} />
         </td>
 
         {/* Size */}
-        <td className="py-3 px-2 text-right text-[13px] tabular-nums text-muted-foreground">
+        <td className="hidden sm:table-cell py-3 px-2 text-right text-[13px] tabular-nums text-muted-foreground">
           {formatBytes(file.size_bytes)}
         </td>
 

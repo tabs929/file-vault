@@ -68,26 +68,26 @@ export function FileList({ files, onDeleted }: FileListProps) {
     <div className="overflow-hidden rounded-lg border border-border bg-muted/40 dark:bg-white/5 dark:backdrop-blur-sm">
       <table className="w-full table-fixed">
         <colgroup>
-          <col className="w-11" />
+          <col className="hidden sm:[display:table-column] w-11" />
           <col />
-          <col className="w-20" />
-          <col className="w-20" />
-          <col className="w-28" />
+          <col className="hidden sm:[display:table-column] w-20" />
+          <col className="hidden sm:[display:table-column] w-20" />
+          <col className="w-24 sm:w-28" />
         </colgroup>
         <thead>
           <tr className="border-b border-border bg-muted/40">
-            <th className="py-2.5 pl-4 pr-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <th className="hidden sm:table-cell py-2.5 pl-4 pr-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               #
             </th>
             <th className="py-2.5 px-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               <SortableHeader label="Name" sortKeyValue="name" />
             </th>
-            <th className="py-2.5 px-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <th className="hidden sm:table-cell py-2.5 px-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               <div className="flex justify-center">
                 <SortableHeader label="Type" sortKeyValue="type" />
               </div>
             </th>
-            <th className="py-2.5 px-2 text-right text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <th className="hidden sm:table-cell py-2.5 px-2 text-right text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               <div className="flex justify-end">
                 <SortableHeader label="Size" sortKeyValue="size" />
               </div>

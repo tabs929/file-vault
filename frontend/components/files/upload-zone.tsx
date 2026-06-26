@@ -237,7 +237,7 @@ export function UploadModal({
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent
-        className="max-w-lg"
+        className="w-[95vw] sm:max-w-md"
         onInteractOutside={(e) => { if (uploading) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (uploading) e.preventDefault(); }}
       >

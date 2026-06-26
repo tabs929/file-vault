@@ -50,7 +50,7 @@ export function FileManager({
   return (
     <div className="space-y-6">
       {/* Header row */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Welcome, {firstName}
@@ -62,7 +62,7 @@ export function FileManager({
         </div>
         <Button
           onClick={() => setUploadOpen(true)}
-          className="gap-2 shrink-0"
+          className="gap-2 w-full sm:w-auto"
           disabled={!emailVerified}
           title={
             !emailVerified
