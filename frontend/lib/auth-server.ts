@@ -18,9 +18,12 @@ export async function getCurrentUser(): Promise<User | null> {
     });
   } catch (error) {
     // 401 = no valid session — expected for logged-out or expired cookies.
-    // Other errors (network, 500) are logged but still treated as unauthenticated
-    // so pages can redirect cleanly instead of throwing during RSC render.
+    // fetch failed = API unreachable (e.g. still starting) — treat as logged out.
+    // Other API errors are logged but still return null so RSC render never throws.
     if (error instanceof ApiError && error.status === 401) {
+      return null;
+    }
+    if (error instanceof TypeError && error.message === "fetch failed") {
       return null;
     }
     console.error("getCurrentUser failed:", error);
