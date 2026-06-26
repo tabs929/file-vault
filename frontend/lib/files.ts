@@ -67,6 +67,10 @@ export async function getDownloadUrl(file_id: string): Promise<DownloadResponse>
   return apiFetch<DownloadResponse>(`/files/${file_id}/download`);
 }
 
+export async function getPreviewUrl(file_id: string): Promise<DownloadResponse> {
+  return apiFetch<DownloadResponse>(`/files/${file_id}/preview`);
+}
+
 export async function deleteFile(file_id: string): Promise<void> {
   return apiFetch<void>(`/files/${file_id}`, { method: "DELETE" });
 }

@@ -30,19 +30,32 @@ import { formatBytes } from "@/lib/format";
 // ── Upload constraints ───────────────────────────────────────────────────────
 
 const ALLOWED_TYPES = new Set([
+  // Images
   "image/jpeg",
   "image/png",
   "image/gif",
   "image/webp",
+  "image/heic",
+  "image/heif",
+  "image/avif",
+  "image/svg+xml",
+  "image/tiff",
+  // Documents
   "application/pdf",
-  "text/plain",
-  "text/csv",
-  "application/json",
-  "application/zip",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  // Text
+  "text/plain",
+  "text/csv",
+  "text/markdown",
+  // Data / archives
+  "application/json",
+  "application/zip",
+  "application/x-zip-compressed",
 ]);
 
 const MAX_BYTES = 100 * 1024 * 1024;
@@ -280,7 +293,7 @@ export function UploadModal({
             Drop files here or browse
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Max 100 MB · Images, PDFs, text, CSV, JSON, ZIP, Office docs
+            Max 100 MB · Images (HEIC, PNG, JPG…), PDFs, Office docs, text, CSV, JSON, ZIP
           </p>
         </div>
 

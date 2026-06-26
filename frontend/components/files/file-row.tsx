@@ -135,7 +135,6 @@ export function FileRow({ file, index, onDeleted }: FileRowProps) {
       const a = document.createElement("a");
       a.href = download_url;
       a.download = file.original_filename;
-      a.target = "_blank";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

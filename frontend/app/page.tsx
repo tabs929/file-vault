@@ -9,16 +9,17 @@ import {
   Gauge,
   Folder,
 } from "lucide-react";
+import { Header } from "@/components/layout/header";
+import { Footer } from "@/components/layout/footer";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import DotField from "@/components/ui/dot-field-client";
 
 export const metadata: Metadata = {
   title: "Vault — Secure file storage",
   icons: { icon: "/favicon.ico" },
 };
-
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // ── Static fake file data for product preview mockup ──────────────────────────
 const mockFiles = [
@@ -51,7 +52,16 @@ export default function HomePage() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <Header />
 
-      <main className="flex-1">
+      <main className="relative flex-1">
+        <DotField
+          dotRadius={2}
+          dotSpacing={14}
+          cursorRadius={160}
+          bulgeStrength={67}
+          gradientFrom="rgba(59, 61, 240, 0.65)"
+          gradientTo="rgba(139, 92, 246, 0.4)"
+        />
+        <div className="relative z-10">
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <section className="mx-auto flex max-w-3xl flex-col items-center px-6 py-24 text-center">
           {/* Pill badge */}
@@ -176,6 +186,7 @@ export default function HomePage() {
             </CardContent>
           </Card>
         </section>
+        </div>
       </main>
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}

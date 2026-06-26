@@ -1,6 +1,6 @@
 "use client";
 
-import { getDownloadUrl } from "@/lib/files";
+import { getDownloadUrl, getPreviewUrl } from "@/lib/files";
 
 const BROWSER_PREVIEWABLE = new Set([
   "application/pdf",
@@ -8,6 +8,11 @@ const BROWSER_PREVIEWABLE = new Set([
   "image/png",
   "image/gif",
   "image/webp",
+  "image/heic",
+  "image/heif",
+  "image/avif",
+  "image/svg+xml",
+  "image/tiff",
 ]);
 
 export async function openFilePreview(
@@ -15,11 +20,11 @@ export async function openFilePreview(
   contentType: string,
   filename: string
 ): Promise<void> {
-  const { download_url } = await getDownloadUrl(fileId);
-
   if (BROWSER_PREVIEWABLE.has(contentType)) {
+    const { download_url } = await getPreviewUrl(fileId);
     window.open(download_url, "_blank", "noopener,noreferrer");
   } else {
+    const { download_url } = await getDownloadUrl(fileId);
     const a = document.createElement("a");
     a.href = download_url;
     a.download = filename;

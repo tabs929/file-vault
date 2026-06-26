@@ -30,19 +30,32 @@ router = APIRouter(redirect_slashes=False)
 MAX_FILE_BYTES = 100 * 1024 * 1024  # 100 MB hard cap regardless of plan
 
 ALLOWED_CONTENT_TYPES = {
+    # Images
     "image/jpeg",
     "image/png",
     "image/gif",
     "image/webp",
+    "image/heic",
+    "image/heif",
+    "image/avif",
+    "image/svg+xml",
+    "image/tiff",
+    # Documents
     "application/pdf",
-    "text/plain",
-    "text/csv",
-    "application/json",
-    "application/zip",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    # Text
+    "text/plain",
+    "text/csv",
+    "text/markdown",
+    # Data / archives
+    "application/json",
+    "application/zip",
+    "application/x-zip-compressed",
 }
 
 
@@ -214,10 +227,39 @@ async def download_file(
     if file_record.upload_status != "confirmed":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found.")
 
-    download_url = storage_service.generate_presigned_get(file_record.storage_key)
+    download_url = storage_service.generate_presigned_get(
+        file_record.storage_key, file_record.original_filename, disposition="attachment"
+    )
 
     return DownloadResponse(
         download_url=download_url,
+        filename=file_record.original_filename,
+        expires_in=300,
+    )
+
+
+@router.get("/{file_id}/preview", response_model=DownloadResponse)
+async def preview_file(
+    file_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DownloadResponse:
+    result = await db.execute(
+        select(File).where(File.id == file_id, File.owner_id == current_user.id)
+    )
+    file_record = result.scalar_one_or_none()
+    if file_record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found.")
+
+    if file_record.upload_status != "confirmed":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found.")
+
+    preview_url = storage_service.generate_presigned_get(
+        file_record.storage_key, file_record.original_filename, disposition="inline"
+    )
+
+    return DownloadResponse(
+        download_url=preview_url,
         filename=file_record.original_filename,
         expires_in=300,
     )

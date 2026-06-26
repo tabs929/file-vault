@@ -61,14 +61,16 @@ def generate_presigned_put(storage_key: str, content_type: str) -> str:
     )
 
 
-def generate_presigned_get(storage_key: str) -> str:
+def generate_presigned_get(storage_key: str, filename: str, disposition: str = "attachment") -> str:
     """Generate a presigned GET URL. Purely local computation — no I/O, no thread needed."""
     client = _public_client()
+    safe = filename.replace('"', '\\"')
     return client.generate_presigned_url(
         "get_object",
         Params={
             "Bucket": settings.S3_BUCKET,
             "Key": storage_key,
+            "ResponseContentDisposition": f'{disposition}; filename="{safe}"',
         },
         ExpiresIn=_PRESIGN_GET_EXPIRY,
     )
