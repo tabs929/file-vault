@@ -60,7 +60,7 @@ export default function LoginPage() {
         } else if (error.status === 429) {
           toast.error("Too many attempts. Please wait a minute.");
         } else {
-          toast.error(error.message);
+          toast.error(error.message || "Something went wrong. Please try again.");
         }
       } else {
         toast.error("Something went wrong. Please try again.");
