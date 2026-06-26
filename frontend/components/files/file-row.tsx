@@ -117,7 +117,6 @@ export function FileRow({ file, index, onDeleted }: FileRowProps) {
 
   const busy = previewing || downloading || deleting;
 
-
   async function handlePreview() {
     setPreviewing(true);
     try {

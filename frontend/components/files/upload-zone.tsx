@@ -27,7 +27,7 @@ import { ApiError } from "@/lib/api";
 import { confirmUpload, requestUpload, uploadToS3 } from "@/lib/files";
 import { formatBytes } from "@/lib/format";
 
-// ── Constants (kept identical to previous upload-zone) ────────────────────────
+// ── Upload constraints ───────────────────────────────────────────────────────
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",

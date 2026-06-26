@@ -8,6 +8,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+# Resend SDK is synchronous; call via asyncio.to_thread to avoid blocking the event loop.
 def _resend_send(params: dict) -> None:
     resend.api_key = settings.RESEND_API_KEY
     resend.Emails.send(params)

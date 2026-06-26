@@ -106,6 +106,8 @@ async def authenticate_user(
             pass
         return None
 
+    # argon2 is CPU-bound; running inline is acceptable here — auth endpoints
+    # are low-frequency and the DB round-trip already dominates latency.
     try:
         _hasher.verify(user.password_hash, password)
     except VerifyMismatchError:
