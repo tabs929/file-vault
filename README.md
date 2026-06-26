@@ -1,229 +1,210 @@
-# File Vault
+# Vault — Secure File Storage
 
-A secure, subscription-aware file storage application.
+A full-stack file storage application with authentication, per-user storage quotas, and direct-to-cloud uploads.
+
+## Live Demo
+
+- **App:** https://file-vault-olive.vercel.app
+- **API health:** https://va-7b3e31b92f654089844b66a8c09fbfdd.ecs.us-west-2.on.aws/health
+
+To try it: register an account — email verification is required before uploading files.
+
+## Features
+
+- **Authentication** — Register, log in, log out with JWT session cookies; instant session revocation via token versioning
+- **Email verification** — Account activation email required before file uploads are enabled
+- **Password reset** — Forgot-password flow with time-limited email link
+- **File uploads** — Multi-file queue with per-file progress tracking; browser uploads directly to S3 (API never handles file bytes)
+- **File management** — View, sort, download, preview in-browser, and delete uploaded files
+- **Storage quotas** — Free (100 MB) and Pro (10 GB) plans; quota enforced atomically at upload confirmation
+- **Dark / light mode** — System preference detected on first load; user can override
+- **Responsive UI** — Works on mobile (390px) through desktop
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Backend | Python 3.12 · FastAPI · SQLAlchemy 2.0 (async) · Alembic · asyncpg |
-| Frontend | Next.js 15 · App Router · TypeScript · Tailwind CSS |
+| Frontend | Next.js 15 (App Router) · TypeScript · Tailwind CSS · shadcn/ui |
 | Database | PostgreSQL 16 |
-| Object Storage | MinIO (local) · AWS S3 (production) |
-| Dependency Management | uv (Python) · npm (Node) |
+| Object Storage | AWS S3 (production) · MinIO (local development) |
+| Email | Resend |
+| CI/CD | GitHub Actions |
+| Hosting | AWS ECS (API) · Vercel (frontend) · AWS RDS (database) |
 
-## Local Setup
+## Architecture
+
+**Direct-to-S3 uploads.** The API issues a presigned URL valid for 10 minutes; the browser uploads directly to S3. The API is never in the data path, which keeps it stateless and eliminates a bandwidth bottleneck. A two-step request/confirm protocol lets the backend atomically increment `used_bytes` only after the upload succeeds, preventing quota drift from failed or abandoned uploads.
+
+**JWT with token versioning.** Each access token embeds a `token_version` that is checked against the user row on every authenticated request. Incrementing `token_version` (on logout or password reset) instantly invalidates all outstanding tokens for that user — no token blacklist table or TTL wait required.
+
+**Same-origin cookies in production.** The frontend (Vercel) proxies all `/api/*` requests to the backend (AWS ECS) via a Next.js catch-all route handler. This makes cookies first-party from the browser's perspective, avoiding cross-origin cookie restrictions without needing `SameSite=None`.
+
+## Security
+
+- Passwords hashed with Argon2id (CPU-hard, memory-hard)
+- JWT sessions with token_version — logout and password reset instantly revoke all tokens
+- File access returns 404 on unauthorized requests (IDOR defense — no information leakage)
+- S3 presigned URLs expire after 15 minutes; bucket has Block Public Access enabled
+- Rate limiting on auth endpoints (5 requests/minute per IP)
+- Email verification required before file uploads are enabled
+
+## Getting Started
 
 ### Prerequisites
 
-- Docker Desktop (or Docker Engine + Compose v2)
-- `uv` — [install](https://docs.astral.sh/uv/getting-started/installation/)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2)
 
-### First-time setup
+### Local Development
 
 ```bash
-# 1. Copy environment variables
+# 1. Clone and configure environment
+git clone https://github.com/tabs929/file-vault
+cd file-vault
 cp .env.example .env
+# Edit .env and fill in your values — see .env.example for descriptions of each variable
 
-# 2. (Optional) Regenerate the Python lockfile if you add new dependencies
-#    Must be run from backend/
-cd backend && uv lock && cd ..
-
-# 3. Build and start all services
+# 2. Start all services (postgres, minio, api, web)
 docker compose up --build
 ```
 
-> **Note on `uv.lock`:** The lockfile is committed for reproducibility.
-> If you add or change dependencies in `backend/pyproject.toml`, run
-> `cd backend && uv lock` and commit the updated `uv.lock`.
+The API runs Alembic migrations automatically on startup in development mode.
 
-### Seed default subscription plans
-
-The `free` and `pro_10` plans must be seeded once after the database is created.
-This is a **manual** step — it is intentionally not run automatically on startup.
+**Seed subscription plans** (one-time, run after first boot):
 
 ```bash
-# Run with the api container already up
 docker compose exec api uv run python -m scripts.seed_plans
 ```
 
-The seed script is idempotent (`INSERT ... ON CONFLICT (name) DO NOTHING`).
-Re-running it is safe and will not overwrite existing rows.
-
-> **Changing plan quotas:** Re-running the seed script will NOT update existing
-> plans. To change a quota, run a manual `UPDATE plans SET quota_bytes = <n>
-> WHERE name = '<plan>'` against the database.
-
-### Alembic migrations
-
-In `ENVIRONMENT=development` (the default), Alembic migrations run automatically
-when the `api` container starts via `entrypoint.sh`.
-
-To run migrations manually:
-
-```bash
-docker compose exec api uv run alembic upgrade head
-```
-
-To create a new migration after changing models:
-
-```bash
-docker compose exec api uv run alembic revision --autogenerate -m "describe change"
-```
-
-### Frontend dependency changes (Docker)
-
-The `web` service uses an anonymous volume for `/app/node_modules`. After adding or
-removing npm packages, `docker compose restart web` alone is not enough — the
-stale volume will keep old modules.
-
-```bash
-docker compose down
-docker compose build --no-cache web
-docker compose up
-```
-
-If problems persist, also prune the builder cache before rebuilding:
-
-```bash
-docker builder prune -f
-docker compose down
-docker compose build --no-cache web
-docker compose up
-```
-
-## Ports
+Services available at:
 
 | Service | URL |
 |---|---|
 | Frontend | http://localhost:3000 |
 | API | http://localhost:8000 |
 | API docs (Swagger) | http://localhost:8000/docs |
-| PostgreSQL | localhost:5432 |
-| MinIO API | http://localhost:9000 |
 | MinIO Console | http://localhost:9001 |
 
-## Verification
-
-After `docker compose up --build`, run:
+### Running Tests
 
 ```bash
-# 1. Health check
-curl http://localhost:8000/health
-# Expected: {"status":"ok"}
-
-# 2. Seed plans (first time only)
-docker compose exec api uv run python -m scripts.seed_plans
-
-# 3. Backend auth tests (requires Postgres; create test DB once)
-docker compose exec postgres psql -U filevault -c "CREATE DATABASE filevault_test;" 2>/dev/null || true
-cd backend && uv run pytest -v
-
-# 4. Manual UI flow
-open http://localhost:3000/register
-# Register → redirected to /login with success toast
-# Sign in → redirected to /dashboard; header shows email + avatar
-# Dashboard shows plan, used, quota stats
-# Logout → redirected to /login; old session cookie returns 401 on /auth/me
-# /dashboard without cookie → redirected to /login (middleware)
-# 5 failed login attempts → alert with forgot-password link
-# 6th login attempt within a minute → rate-limit toast
+docker compose exec api uv run pytest -v
 ```
 
-### Auth API smoke tests (optional)
-
-```bash
-# Register
-curl -s -X POST http://localhost:8000/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"unique-password-123","plan_name":"free"}'
-
-# Login (saves session cookie)
-curl -s -c /tmp/vault-cookies -X POST http://localhost:8000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"unique-password-123"}'
-
-# Current user
-curl -s -b /tmp/vault-cookies http://localhost:8000/auth/me
-
-# Logout
-curl -s -b /tmp/vault-cookies -c /tmp/vault-cookies -X POST http://localhost:8000/auth/logout
-```
-
-## Phase Progress
-
-- [x] **Phase 1 — Foundation**
-  - Monorepo scaffold, Docker Compose, health endpoint, DB schema, plan seed script
-- [x] **Phase 2 — Auth**
-  - Register, login, logout, JWT session cookie, token revocation, rate limiting, auth UI
-- [ ] **Phase 3 — Files & Security** (S3/MinIO uploads, ownership enforcement, quotas)
-- [ ] **Phase 4 — Password Reset** (AWS SES)
-- [ ] **Phase 5 — Polish & Tests**
-- [ ] **Phase 6 — Deploy to AWS** (App Runner, RDS, S3, Vercel)
-- [ ] **Phase 7 — Stretch: Terraform**
+Tests cover registration, login, logout, token revocation, rate limiting, email verification, password reset, file upload/download/delete, and quota enforcement.
 
 ## Project Structure
 
 ```
 /
-├── backend/                    # FastAPI backend
+├── backend/
 │   ├── app/
-│   │   ├── main.py             # App factory, lifespan, CORS, auth router
+│   │   ├── main.py                     # App factory, lifespan, CORS
 │   │   ├── core/
-│   │   │   ├── config.py       # pydantic-settings (all env vars)
-│   │   │   ├── database.py     # Async engine + session factory
-│   │   │   ├── security.py     # Argon2 + JWT helpers
-│   │   │   ├── auth.py         # get_current_user dependency
-│   │   │   ├── exceptions.py   # Custom errors + handlers
-│   │   │   ├── password_blocklist.py
-│   │   │   └── rate_limit.py   # slowapi limiter
+│   │   │   ├── config.py               # pydantic-settings (all env vars)
+│   │   │   ├── database.py             # Async engine + session factory
+│   │   │   ├── security.py             # Argon2 hashing + JWT helpers
+│   │   │   ├── auth.py                 # get_current_user dependency
+│   │   │   ├── exceptions.py           # Custom errors + handlers
+│   │   │   ├── password_blocklist.py   # Common password rejection list
+│   │   │   └── rate_limit.py           # slowapi rate limiter
 │   │   ├── models/
-│   │   │   ├── base.py         # DeclarativeBase
-│   │   │   ├── mixins.py       # TimestampMixin (created_at, updated_at)
+│   │   │   ├── base.py                 # SQLAlchemy DeclarativeBase
+│   │   │   ├── mixins.py               # TimestampMixin (created_at, updated_at)
 │   │   │   ├── plan.py
 │   │   │   ├── user.py
-│   │   │   └── file.py
+│   │   │   ├── file.py
+│   │   │   └── token.py                # Email verification / reset tokens
 │   │   ├── schemas/
-│   │   │   └── auth.py         # Register/Login/UserResponse schemas
+│   │   │   ├── auth.py                 # Register / login / user response schemas
+│   │   │   └── files.py                # File upload / list schemas
 │   │   ├── routers/
-│   │   │   └── auth.py         # /auth/* endpoints
+│   │   │   ├── auth.py                 # /auth/* endpoints
+│   │   │   └── files.py                # /files/* endpoints
 │   │   └── services/
-│   │       └── auth_service.py # register + authenticate logic
-│   ├── alembic/                # Migration environment
+│   │       ├── auth_service.py         # Registration + authentication logic
+│   │       ├── email_service.py        # Resend email dispatch
+│   │       ├── quota_service.py        # Atomic quota check (SELECT FOR UPDATE)
+│   │       ├── storage_service.py      # S3 presigned URL generation
+│   │       └── token_service.py        # Verification + reset token lifecycle
+│   ├── alembic/
 │   │   └── versions/
 │   │       ├── 0001_initial_schema.py
-│   │       └── 0002_add_user_auth_columns.py
+│   │       ├── 0002_add_user_auth_columns.py
+│   │       ├── 0003_add_upload_status_to_files.py
+│   │       ├── 0004_add_verification_tokens.py
+│   │       └── 0005_add_full_name_to_users.py
 │   ├── scripts/
-│   │   └── seed_plans.py       # Manual plan seeder
+│   │   ├── seed_plans.py               # Inserts free + pro_10 plans (idempotent)
+│   │   └── reconcile_quota.py          # Corrects used_bytes drift, purges stale uploads
 │   ├── tests/
 │   │   ├── conftest.py
-│   │   └── test_auth.py
+│   │   ├── test_auth.py
+│   │   ├── test_files.py
+│   │   └── test_email_features.py
 │   ├── pyproject.toml
 │   ├── uv.lock
 │   ├── entrypoint.sh
 │   └── Dockerfile
 │
-├── frontend/                   # Next.js 15 frontend
+├── frontend/
 │   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx            # Marketing homepage
-│   │   ├── login/page.tsx
-│   │   ├── register/page.tsx
-│   │   ├── forgot-password/page.tsx
-│   │   ├── (authenticated)/dashboard/page.tsx
-│   │   └── globals.css
+│   │   ├── layout.tsx                  # Root layout (ThemeProvider, Toaster)
+│   │   ├── page.tsx                    # Marketing landing page
+│   │   ├── loading.tsx                 # Page transition spinner
+│   │   ├── globals.css
+│   │   ├── (authenticated)/
+│   │   │   ├── loading.tsx
+│   │   │   └── dashboard/page.tsx      # Main file manager dashboard
+│   │   ├── login/
+│   │   ├── register/
+│   │   ├── forgot-password/
+│   │   ├── reset-password/
+│   │   ├── auth/verify-email/
+│   │   └── api/[...path]/route.ts      # Proxy → backend (same-origin cookies)
 │   ├── components/
 │   │   ├── auth/auth-card.tsx
-│   │   └── layout/header.tsx
+│   │   ├── brand/logo.tsx
+│   │   ├── dashboard/
+│   │   │   └── verification-banner.tsx
+│   │   ├── files/
+│   │   │   ├── file-list.tsx           # Sortable file table
+│   │   │   ├── file-manager.tsx        # Dashboard shell + state
+│   │   │   ├── file-preview.tsx        # In-browser file preview
+│   │   │   ├── file-row.tsx            # Single file row + action buttons
+│   │   │   ├── upload-zone.tsx         # Drag-and-drop upload modal
+│   │   │   ├── usage-bar.tsx           # Storage quota bar
+│   │   │   └── empty-state.tsx
+│   │   ├── layout/
+│   │   │   ├── header.tsx
+│   │   │   ├── header-background.tsx   # Scroll-aware frosted glass effect
+│   │   │   ├── header-logo.tsx         # Logo with scroll-to-top on home
+│   │   │   ├── header-user-menu.tsx    # Avatar dropdown (initials, logout)
+│   │   │   └── footer.tsx
+│   │   ├── theme-provider.tsx
+│   │   ├── theme-toggle.tsx
+│   │   └── ui/                         # shadcn/ui components
 │   ├── lib/
-│   │   ├── api.ts              # Typed fetch helpers (credentials: include)
-│   │   ├── auth.ts             # Client auth helpers
-│   │   └── auth-server.ts      # Server-only getCurrentUser
-│   ├── middleware.ts           # Cookie-presence route guard
+│   │   ├── api.ts                      # Typed fetch client + ApiError class
+│   │   ├── auth.ts                     # Client-side auth helpers
+│   │   ├── auth-server.ts              # Server-only getCurrentUser (RSC)
+│   │   ├── files.ts                    # File API helpers
+│   │   └── format.ts                   # formatBytes, planDisplayName
+│   ├── middleware.ts                   # Cookie-presence route guard
 │   ├── package.json
 │   └── Dockerfile
 │
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                      # Run backend tests + frontend type check
+│       └── deploy.yml                  # Build + push ECR image, deploy to ECS
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
 ```
+
+## Deployment
+
+The backend is containerized and runs on **AWS ECS** (Fargate), with **AWS RDS** for PostgreSQL and **AWS S3** for file storage. The frontend is deployed to **Vercel**.
+
+CI runs on every push to `main`: backend pytest suite + frontend TypeScript check. Deployment triggers automatically when CI passes, building a new Docker image, pushing it to **AWS ECR**, and issuing a forced ECS service redeployment.

@@ -235,11 +235,11 @@ export function UploadModal({
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+    <Dialog open={open} onOpenChange={(o: boolean) => { if (!o) handleClose(); }}>
       <DialogContent
         className="w-[95vw] sm:max-w-md"
-        onInteractOutside={(e) => { if (uploading) e.preventDefault(); }}
-        onEscapeKeyDown={(e) => { if (uploading) e.preventDefault(); }}
+        onInteractOutside={(e: Event) => { if (uploading) e.preventDefault(); }}
+        onEscapeKeyDown={(e: KeyboardEvent) => { if (uploading) e.preventDefault(); }}
       >
         <DialogHeader>
           <DialogTitle>Upload files</DialogTitle>
