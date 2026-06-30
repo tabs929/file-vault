@@ -25,10 +25,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await engine.dispose()
 
 
+_is_production = settings.ENVIRONMENT == "production"
+
 app = FastAPI(
     title="File Vault API",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
 )
 app.state.limiter = limiter
 
