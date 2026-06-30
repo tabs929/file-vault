@@ -47,6 +47,12 @@ function TypeBadge({ contentType }: { contentType: string }) {
   ) {
     label = "XLSX";
     cls = "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300";
+  } else if (
+    contentType === "application/vnd.ms-powerpoint" ||
+    contentType.includes("presentationml")
+  ) {
+    label = "PPTX";
+    cls = "bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300";
   } else if (contentType === "application/json") {
     label = "JSON";
     cls = "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300";
@@ -54,8 +60,10 @@ function TypeBadge({ contentType }: { contentType: string }) {
     label = "CSV";
     cls = "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
   } else {
-    const sub = contentType.split("/")[1].toUpperCase();
-    label = sub === "PLAIN" ? "TXT" : sub;
+    const sub = contentType.split("/")[1] ?? "";
+    // vnd.* types (Office formats) have unwieldy names — don't derive a label from them
+    const short = sub.startsWith("vnd.") ? "FILE" : sub.toUpperCase().slice(0, 6);
+    label = short === "PLAIN" ? "TXT" : short;
     cls = "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
   }
 
